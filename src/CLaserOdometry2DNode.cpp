@@ -86,14 +86,22 @@ void CLaserOdometry2DNode::LaserCallBack(const sensor_msgs::msg::LaserScan::Shar
     // Keep in memory the last received laser_scan
     last_scan = *new_scan;
     rf2o_ref.current_scan_time = last_scan.header.stamp;
-    
+
     if (rf2o_ref.first_laser_scan == false)
     {
       // copy laser range data to rf2o internal variable
-      for (unsigned int i = 0; i < rf2o_ref.width; i++)
-        rf2o_ref.range_wf(i) = new_scan->ranges[i];
-      // inform of new scan available
-      new_scan_available = true;
+        //      for (unsigned int i = 0; i < rf2o_ref.width; i++)
+        //        rf2o_ref.range_wf(i) = new_scan->ranges[i];
+        std::memcpy(
+        rf2o_ref.range_wf.data(),
+        new_scan->ranges.data(),
+        rf2o_ref.width * sizeof(float)
+        );
+
+      rf2o_ref.odometryCalculation(last_scan);
+
+        // Publish odometry over ROS2 (tf/topic)
+        publish();
     }
     else
     {
@@ -161,7 +169,8 @@ bool CLaserOdometry2DNode::scan_available()
 */
 void CLaserOdometry2DNode::process()
 {
-  // Do only run when a new scan is ready 
+   RCLCPP_WARN(get_logger(), "try to publish");
+  // Do only run when a new scan is ready
   if( rf2o_ref.is_initialized() && scan_available() )
   {
     // Process odometry estimation
@@ -260,8 +269,8 @@ int main(int argc, char** argv)
   // Loop
   while (rclcpp::ok()){ 
       rclcpp::spin_some(myLaserOdomNode);
-      myLaserOdomNode->process();
-      rate.sleep();
+//      myLaserOdomNode->process();
+//      rate.sleep();
   }
 
   return 0;
